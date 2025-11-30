@@ -1,0 +1,20 @@
+[package]
+name = "wezzapp-cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+wezzapp-core = { path = "../wezzapp-core" }
+clap = { version = "4.5.53", features = ["derive"] }
+toml = "0.9.8"
+inquire = "0.9.1"
+directories = "6.0.0"
+
+[dev-dependencies]
+tempfile = "3"
+rstest = "0.26"
