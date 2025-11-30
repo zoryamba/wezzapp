@@ -1,0 +1,19 @@
+[workspace]
+members = [
+    "crates/wezzapp-core",
+    "crates/wezzapp-cli",
+]
+
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+authors = ["Roman Zoria <zoryamba@gmail.com>"]
+license = "MIT"
+
+[workspace.dependencies]
+anyhow = "1.0.100"
+serde = { version = "1.0.228", features = ["derive"] }
+tracing = "0.1.43"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
