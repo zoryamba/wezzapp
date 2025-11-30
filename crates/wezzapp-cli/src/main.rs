@@ -1,7 +1,8 @@
 use clap::Parser;
 use tracing::info;
 use tracing_subscriber::{EnvFilter, fmt};
-
+use wezzapp_core::apis::HttpProviderClientFactory;
+use wezzapp_core::weather_service::WeatherService;
 use crate::cli::Command;
 use crate::handlers::configure::ConfigureHandler;
 use crate::handlers::get::GetHandler;
@@ -17,7 +18,6 @@ fn main() -> anyhow::Result<()> {
     init_tracing();
 
     let args = cli::Cli::parse();
-    info!(?args, "Parsed CLI arguments");
 
     match args.command {
         Command::Configure { provider } => {
@@ -25,10 +25,20 @@ fn main() -> anyhow::Result<()> {
                 .run(provider)
         }
         Command::Get {
-            provider,
             address,
             date,
-        } => GetHandler::run(provider, address, date),
+            provider,
+        } => {
+            let store = TomlFileCredentialsStore::new()?;
+
+            let factory = HttpProviderClientFactory::new(); // your implementation
+
+            let service = WeatherService::new(store, factory);
+            let mut handler = GetHandler::new(service);
+
+
+            handler.run(address, date, provider)
+        },
     }
 }
 
