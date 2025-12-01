@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use inquire::{Confirm, Text};
+use tracing::debug;
 use wezzapp_core::credentials::Credentials;
 use wezzapp_core::provider::Provider;
 
@@ -26,6 +27,7 @@ impl InquirePrompter {
 
 impl ConfigurePrompter for InquirePrompter {
     fn confirm_overwrite(&mut self, _provider: Provider) -> Result<bool> {
+        debug!("Confirming overwrite");
         let answer = Confirm::new("Credentials already exist. Overwrite?")
             .with_default(true)
             .prompt()
@@ -35,6 +37,7 @@ impl ConfigurePrompter for InquirePrompter {
     }
 
     fn confirm_set_default(&mut self, _provider: Provider) -> Result<bool> {
+        debug!("Confirming default provider change");
         let answer = Confirm::new("Do you want to make this provider the default?")
             .with_default(true)
             .prompt()
@@ -44,6 +47,7 @@ impl ConfigurePrompter for InquirePrompter {
     }
 
     fn prompt_credentials(&mut self, provider: Provider) -> Result<Credentials> {
+        debug!("Prompting for credentials for provider {:?}", provider);
         match provider {
             Provider::WeatherApi => {
                 let api_key = Text::new("Enter WeatherAPI API key:")

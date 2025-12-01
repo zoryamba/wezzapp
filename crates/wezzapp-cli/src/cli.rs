@@ -81,3 +81,12 @@ impl From<ProviderCli> for Provider {
         }
     }
 }
+
+impl std::fmt::Display for ProviderCli {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ProviderCli::WeatherApi => write!(f, "weatherapi"),
+            ProviderCli::AccuWeather => write!(f, "accuweather"),
+        }
+    }
+}

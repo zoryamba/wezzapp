@@ -3,7 +3,9 @@ use crate::credentials::CredentialsStore;
 use crate::provider::Provider;
 use anyhow::{Context, Result, anyhow};
 use chrono::{Local, NaiveDate};
+use tracing::debug;
 
+#[derive(Debug)]
 pub struct WeatherService<S, F>
 where
     S: CredentialsStore,
@@ -29,11 +31,13 @@ where
         date: Option<String>,
         provider: Option<Provider>,
     ) -> Result<WeatherReport> {
+        debug!("Getting weather for address `{address}`");
         let days = if let Some(date) = date {
             days_from_today(&date)?
         } else {
             0
         };
+        debug!("Days from today: {days}");
 
         let provider = self.resolve_provider(provider)?;
 
@@ -47,6 +51,7 @@ where
                      Please configure it first."
                 )
             })?;
+        debug!("Got credentials");
 
         let client = self.factory.create_client(provider, creds)?;
 
@@ -71,18 +76,19 @@ where
 }
 
 pub fn days_from_today(date_str: &str) -> Result<u32> {
+    debug!("Calculating days from today for date `{date_str}`");
     let target = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
         .context("invalid date format (expected YYYY-MM-DD)")?;
+    debug!("Parsed date `{date_str}` as `{target:?}`");
 
     let today = Local::now().date_naive();
+    debug!("Today is `{today:?}`");
 
     if target < today {
         return Err(anyhow!("date is in the past"));
     }
 
-    let days = (target - today).num_days();
-
-    Ok(days as u32)
+    Ok((target - today).num_days() as u32)
 }
 
 #[cfg(test)]
@@ -111,30 +117,6 @@ mod tests {
 
         let result = days_from_today(&date_str).unwrap();
         assert_eq!(result, 1);
-    }
-
-    #[test]
-    fn fourteen_days_ahead_is_allowed() {
-        let today = Local::now().date_naive();
-        let future = today + Duration::days(14);
-        let date_str = fmt(future);
-
-        let result = days_from_today(&date_str).unwrap();
-        assert_eq!(result, 14);
-    }
-
-    #[test]
-    fn more_than_fourteen_days_returns_error() {
-        let today = Local::now().date_naive();
-        let future = today + Duration::days(15);
-        let date_str = fmt(future);
-
-        let err = days_from_today(&date_str).unwrap_err();
-        let msg = err.to_string();
-        assert!(
-            msg.contains("more than 14 days"),
-            "unexpected error message: {msg}"
-        );
     }
 
     #[test]

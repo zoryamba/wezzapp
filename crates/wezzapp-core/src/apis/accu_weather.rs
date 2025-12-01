@@ -6,8 +6,10 @@ use reqwest::Url;
 use reqwest::blocking::Client;
 use reqwest::header::AUTHORIZATION;
 use serde::{Deserialize, Deserializer, de};
+use tracing::debug;
 
 /// Http client for AccuWeather API
+#[derive(Debug)]
 pub struct AccuWeatherClient<'a> {
     api_key: String,
     url: &'a str,
@@ -26,6 +28,7 @@ impl AccuWeatherClient<'static> {
 
 impl AccuWeatherClient<'static> {
     fn get_location_key(&self, address: String) -> Result<AccuWeatherLocationResponse> {
+        debug!("Getting location key for address `{address}`");
         let mut url = Url::parse(self.url).context("Error parsing AccuWeather API URL")?;
         url = url
             .join("locations/v1/search")
@@ -34,6 +37,7 @@ impl AccuWeatherClient<'static> {
             let mut qp = url.query_pairs_mut();
             qp.append_pair("q", &address);
         }
+        debug!("AccuWeather API URL: {url:?}");
 
         let resp = self
             .client
@@ -43,14 +47,17 @@ impl AccuWeatherClient<'static> {
             .context("failed to send request to AccuWeather API")?
             .error_for_status()
             .context("AccuWeather API returned error status")?;
+        debug!("AccuWeather API response: {resp:?}");
 
         let mut body: Vec<AccuWeatherLocationResponse> = resp
             .json()
             .context("failed to deserialize AccuWeather API JSON")?;
+        debug!("AccuWeather API body: {body:?}");
 
         let location_key = body
             .pop()
             .context("Address not found, please, use more accurate address, eg: Kyiv, Ukraine")?;
+        debug!("AccuWeather API location key: {location_key:?}");
 
         Ok(location_key)
     }
@@ -58,6 +65,7 @@ impl AccuWeatherClient<'static> {
 
 impl ProviderClient for AccuWeatherClient<'static> {
     fn get_weather(&self, address: String, day_from_today: u32) -> Result<WeatherReport> {
+        debug!("Getting weather for address `{address} day from today: {day_from_today}`");
         let days = day_from_today + 1;
         // It only supports up to 5 days on the free plan.
         if days > 5 {
@@ -76,6 +84,7 @@ impl ProviderClient for AccuWeatherClient<'static> {
             let mut qp = url.query_pairs_mut();
             qp.append_pair("metric", &true.to_string());
         }
+        debug!("AccuWeather API URL: {url:?}");
 
         let resp = self
             .client
@@ -85,15 +94,18 @@ impl ProviderClient for AccuWeatherClient<'static> {
             .context("failed to send request to AccuWeather API")?
             .error_for_status()
             .context("AccuWeather API returned error status")?;
+        debug!("AccuWeather API response: {resp:?}");
 
         let body: AccuWeatherForecastResponse = resp
             .json()
             .context("Failed to deserialize AccuWeather API JSON")?;
+        debug!("AccuWeather API body: {body:?}");
 
         let forecast = body
             .daily_forecasts
             .get(day_from_today as usize)
             .context("Wrong number of days in API response")?;
+        debug!("AccuWeather API forecast: {forecast:?}");
 
         Ok(WeatherReport {
             provider: Provider::WeatherApi,
@@ -112,7 +124,7 @@ impl ProviderClient for AccuWeatherClient<'static> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 struct AccuWeatherLocationResponse {
     #[serde(rename = "Key")]
     key: String,
@@ -121,7 +133,7 @@ struct AccuWeatherLocationResponse {
     #[serde(rename = "Country")]
     country: AccuWeatherCountryResponse,
 }
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 struct AccuWeatherCountryResponse {
     #[serde(rename = "LocalizedName")]
     localized_name: String,

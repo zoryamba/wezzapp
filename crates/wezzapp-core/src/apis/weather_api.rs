@@ -4,8 +4,10 @@ use anyhow::{Context, anyhow};
 use reqwest::Url;
 use reqwest::blocking::Client;
 use serde::Deserialize;
+use tracing::debug;
 
 /// Http client for WeatherAPI
+#[derive(Debug)]
 pub struct WeatherApiClient<'a> {
     api_key: String,
     url: &'a str,
@@ -24,6 +26,7 @@ impl WeatherApiClient<'static> {
 
 impl ProviderClient for WeatherApiClient<'static> {
     fn get_weather(&self, address: String, day_from_today: u32) -> anyhow::Result<WeatherReport> {
+        debug!("Getting weather for address `{address} day from today: {day_from_today}`");
         let days = day_from_today + 1;
 
         if days > 14 {
@@ -40,6 +43,7 @@ impl ProviderClient for WeatherApiClient<'static> {
             qp.append_pair("q", &address);
             qp.append_pair("days", &(days).to_string());
         }
+        debug!("WeatherAPI URL: {url:?}");
 
         let resp = self
             .client
@@ -48,16 +52,19 @@ impl ProviderClient for WeatherApiClient<'static> {
             .context("failed to send request to WeatherAPI")?
             .error_for_status()
             .context("WeatherAPI returned error status")?;
+        debug!("WeatherAPI response: {resp:?}");
 
         let body: WeatherApiResponse = resp
             .json()
             .context("failed to deserialize WeatherAPI JSON")?;
+        debug!("WeatherAPI body: {body:?}");
 
         let forecast = body
             .forecast
             .forecastday
             .get(day_from_today as usize)
             .context("wrong number of days in API response")?;
+        debug!("WeatherAPI forecast: {forecast:?}");
 
         Ok(WeatherReport {
             provider: Provider::WeatherApi,

@@ -3,8 +3,10 @@ use serde::{Deserialize, Serialize};
 
 /// Credentials for a concrete provider.
 /// Use enum, since each provider may have different auth fields
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Do not derive(Debug) to avoid credentials logging
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[cfg_attr(test, derive(Debug))]
 pub enum Credentials {
     WeatherApi { api_key: String },
     AccuWeather { api_key: String },

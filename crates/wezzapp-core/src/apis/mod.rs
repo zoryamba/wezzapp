@@ -40,6 +40,7 @@ pub trait ProviderClientFactory {
     ) -> Result<Box<dyn ProviderClient>>;
 }
 
+#[derive(Debug)]
 pub struct HttpProviderClientFactory;
 
 impl HttpProviderClientFactory {

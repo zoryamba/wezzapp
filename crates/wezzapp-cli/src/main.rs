@@ -1,5 +1,5 @@
 use clap::Parser;
-use tracing::info;
+use tracing::{debug};
 use tracing_subscriber::{EnvFilter, fmt};
 use wezzapp_core::apis::HttpProviderClientFactory;
 use wezzapp_core::weather_service::WeatherService;
@@ -18,6 +18,7 @@ fn main() -> anyhow::Result<()> {
     init_tracing();
 
     let args = cli::Cli::parse();
+    debug!("Parsed CLI args: {:?}", args);
 
     match args.command {
         Command::Configure { provider } => {
@@ -30,12 +31,16 @@ fn main() -> anyhow::Result<()> {
             provider,
         } => {
             let store = TomlFileCredentialsStore::new()?;
+            debug!("Loaded credentials from store");
 
-            let factory = HttpProviderClientFactory::new(); // your implementation
+            let factory = HttpProviderClientFactory::new();
+            debug!("Initialized provider client factory: {:?}", factory);
 
             let service = WeatherService::new(store, factory);
-            let mut handler = GetHandler::new(service);
+            debug!("Initialized weather service");
 
+            let mut handler = GetHandler::new(service);
+            debug!("Initialized weather get handler");
 
             handler.run(address, date, provider)
         },

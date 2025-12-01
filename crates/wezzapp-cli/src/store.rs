@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use tracing::debug;
 use wezzapp_core::credentials::{Credentials, CredentialsStore};
 use wezzapp_core::provider::Provider;
 
@@ -18,10 +19,7 @@ use wezzapp_core::provider::Provider;
 /// [providers.weatherapi.weatherapi]
 /// api_key = "xyz"
 /// ```
-///
-/// Provider keys may seem repetitive, but this structure may be useful if in future we decide to store multiple
-/// credentials for the same customer under some custom alias (I would definitely do, if I had free time :))
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 struct Config {
     /// Default provider (string encoded via `Provider` serde rename).
     #[serde(default)]
@@ -43,28 +41,34 @@ pub struct TomlFileCredentialsStore {
 
 impl TomlFileCredentialsStore {
     pub fn new() -> Result<Self> {
+        debug!("Creating new TomlFileCredentialsStore");
         let dirs =
             directories::UserDirs::new().context("failed to determine user home directory")?;
         let home = dirs.home_dir();
         let dir = home.join(".wezzapp");
         let path = dir.join("credentials.toml");
+        debug!("Using credentials file at {}", path.display());
 
         Self::new_with_path(&path)
     }
 
     fn new_with_path(path: &Path) -> Result<Self> {
+        debug!("Creating new TomlFileCredentialsStore with path {}", path.display());
         let config = if path.exists() {
             let contents = fs::read_to_string(&path)
                 .context(format!("failed to read config file {}", path.display()))?;
+            debug!("Loaded credentials from {}", path.display());
 
             toml::from_str(&contents).context("failed to parse credentials TOML")?
         } else {
             if let Some(parent) = path.parent() {
                 fs::create_dir_all(parent)
                     .context(format!("failed to create directory {}", parent.display()))?;
+                debug!("Created directory {} for credentials file", parent.display());
             }
             Config::default()
         };
+        debug!("Config created");
 
         Ok(Self {
             path: path.to_path_buf(),
@@ -73,15 +77,20 @@ impl TomlFileCredentialsStore {
     }
 
     fn save_file(&self) -> Result<()> {
+        debug!("Saving credentials to {}", self.path.display());
         let tmp = self.path.with_extension("tmp");
 
         let data =
             toml::to_string_pretty(&self.config).context("failed to serialize credentials TOML")?;
+
         fs::write(&tmp, data).context(format!("failed to write config file {}", tmp.display()))?;
+        debug!("Wrote credentials to {}", tmp.display());
+
         fs::rename(&tmp, &self.path).context(format!(
             "failed to rename tmp config file {}",
             tmp.display()
         ))?;
+        debug!("Renamed tmp file to {}", self.path.display());
 
         Ok(())
     }
@@ -89,20 +98,24 @@ impl TomlFileCredentialsStore {
 
 impl CredentialsStore for TomlFileCredentialsStore {
     fn set_credentials(&mut self, provider: Provider, credentials: &Credentials) -> Result<()> {
+        debug!("Setting credentials for provider {:?}", provider);
         self.config.providers.insert(provider, credentials.clone());
         self.save_file().context("failed to save credentials")
     }
 
     fn get_credentials(&self, provider: Provider) -> Result<Option<Credentials>> {
+        debug!("Getting credentials for provider {:?}", provider);
         Ok(self.config.providers.get(&provider).cloned())
     }
 
     fn set_default_provider(&mut self, provider: Provider) -> Result<()> {
+        debug!("Setting default provider to {:?}", provider);
         self.config.default = Some(provider);
         self.save_file()
     }
 
     fn get_default_provider(&self) -> Result<Option<Provider>> {
+        debug!("Getting default provider");
         Ok(self.config.default)
     }
 }
@@ -186,11 +199,7 @@ mod tests {
             .get_credentials(provider)
             .expect("get_credentials");
 
-        assert_eq!(
-            Some(creds),
-            loaded,
-            "stored credentials should match what we get back"
-        );
+        assert!(Some(creds) == loaded, "stored credentials should match what we get back");
     }
 
     #[test]
@@ -254,11 +263,7 @@ mod tests {
             .expect("get_credentials");
         let default_provider = store2.get_default_provider().expect("get_default_provider");
 
-        assert_eq!(
-            Some(creds.clone()),
-            loaded_creds,
-            "credentials should survive reload"
-        );
+        assert!(Some(creds) == loaded_creds, "credentials should survive reload");
         assert_eq!(
             Some(Provider::WeatherApi),
             default_provider,

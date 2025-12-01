@@ -1,6 +1,7 @@
 use crate::cli::ProviderCli;
 use crate::prompter::ConfigurePrompter;
 use anyhow::{Context, Result};
+use tracing::debug;
 use wezzapp_core::credentials::CredentialsStore;
 use wezzapp_core::provider::Provider;
 
@@ -22,16 +23,19 @@ where
     pub fn new(store: S, prompter: P) -> Self {
         Self { store, prompter }
     }
-    pub fn run(&mut self, provider: ProviderCli) -> Result<()> {
-        let provider: Provider = provider.into();
+    pub fn run(&mut self, provider_cli: ProviderCli) -> Result<()> {
+        let provider: Provider = provider_cli.into();
+        debug!("Configuring provider: {:?}", provider);
 
         let existing = self.store.get_credentials(provider)?;
+        debug!("Existing credentials {}", existing.is_some());
 
         let overwrite = if existing.is_some() {
             self.prompter.confirm_overwrite(provider)?
         } else {
             true
         };
+        debug!("Overwrite credentials: {:?}", overwrite);
 
         if overwrite {
             let new_credentials = self.prompter.prompt_credentials(provider)?;
@@ -40,23 +44,25 @@ where
                 .set_credentials(provider, &new_credentials)
                 .context("failed to save credentials")?;
 
-            println!("Credentials for `{provider:?}` were saved.");
+            println!("Credentials for `{provider_cli}` were saved.");
         };
 
         let current_default = self.store.get_default_provider()?;
+        debug!("Current default provider: {:?}", current_default);
 
         let set_default = match current_default {
             None => true,
             Some(default) if default == provider => false,
             Some(_) => self.prompter.confirm_set_default(provider)?,
         };
+        debug!("Set default provider: {:?}", set_default);
 
         if set_default {
             self.store
                 .set_default_provider(provider)
                 .context("failed to set default provider")?;
 
-            println!("Provider `{provider:?}` was set as default.");
+            println!("Provider `{provider_cli}` was set as default.");
         }
 
         Ok(())
@@ -70,7 +76,7 @@ mod tests {
     use wezzapp_core::credentials::Credentials;
 
     /// In-memory implementation of CredentialsStore for tests.
-    #[derive(Debug, Default)]
+    #[derive(Default)]
     struct InMemoryStore {
         default: Option<Provider>,
         providers: HashMap<Provider, Credentials>,
@@ -97,7 +103,6 @@ mod tests {
     }
 
     /// Mock prompter that lets tests control answers.
-    #[derive(Debug)]
     struct MockPrompter {
         pub overwrite_answer: bool,
         pub set_default_answer: bool,
@@ -155,12 +160,7 @@ mod tests {
             .cloned()
             .expect("credentials must be present");
 
-        assert_eq!(
-            saved,
-            Credentials::WeatherApi {
-                api_key: "TEST_KEY".to_string()
-            }
-        );
+        assert!(saved == Credentials::WeatherApi { api_key: "TEST_KEY".to_string() });
         assert_eq!(store.default, Some(provider.into()));
         assert!(!prompter.overwrite_called);
         assert!(prompter.credentials_prompt_called);
@@ -203,12 +203,7 @@ mod tests {
             .cloned()
             .expect("credentials must be present");
 
-        assert_eq!(
-            saved,
-            Credentials::WeatherApi {
-                api_key: "EXISTING_KEY".to_string()
-            }
-        );
+        assert!(saved == Credentials::WeatherApi { api_key: "EXISTING_KEY".to_string() });
         assert_eq!(store.default, Some(provider.into()));
         assert!(prompter.overwrite_called);
         assert!(!prompter.credentials_prompt_called);
@@ -254,12 +249,7 @@ mod tests {
             .cloned()
             .expect("credentials must be present");
 
-        assert_eq!(
-            saved,
-            Credentials::AccuWeather {
-                api_key: "NEW_KEY".to_string()
-            }
-        );
+        assert!(saved == Credentials::AccuWeather { api_key: "NEW_KEY".to_string() });
         assert_eq!(store.default, Some(provider.into()));
         assert!(prompter.overwrite_called);
         assert!(prompter.credentials_prompt_called);

@@ -1,9 +1,11 @@
 use crate::cli::ProviderCli;
 use crate::store::TomlFileCredentialsStore;
 use anyhow::Result;
+use tracing::debug;
 use wezzapp_core::apis::{HttpProviderClientFactory, WeatherReport};
 use wezzapp_core::weather_service::WeatherService;
 
+/// `get` command handler.
 pub struct GetHandler {
     service: WeatherService<TomlFileCredentialsStore, HttpProviderClientFactory>,
 }
@@ -27,7 +29,10 @@ impl GetHandler {
         date: Option<String>,
         provider: Option<ProviderCli>,
     ) -> Result<()> {
+        debug!("Running get handler with address: {:?}, date: {:?}, provider: {:?}", address, date, provider);
+
         let report = self.service.get_weather(address, date, provider.map(Into::into))?;
+        debug!("Weather report: {:?}", report);
 
         self.render_report(report);
 
@@ -37,6 +42,7 @@ impl GetHandler {
     /// Renders weather report
     /// Can be moved to separate render layer if needed
     fn render_report(&mut self, report: WeatherReport) {
+        debug!("Rendering report: {:?}", report);
         println!("{:?}", report);
     }
 }
