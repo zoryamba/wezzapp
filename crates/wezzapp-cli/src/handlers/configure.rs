@@ -160,7 +160,12 @@ mod tests {
             .cloned()
             .expect("credentials must be present");
 
-        assert!(saved == Credentials::WeatherApi { api_key: "TEST_KEY".to_string() });
+        assert!(
+            saved
+                == Credentials::WeatherApi {
+                    api_key: "TEST_KEY".to_string()
+                }
+        );
         assert_eq!(store.default, Some(provider.into()));
         assert!(!prompter.overwrite_called);
         assert!(prompter.credentials_prompt_called);
@@ -203,7 +208,12 @@ mod tests {
             .cloned()
             .expect("credentials must be present");
 
-        assert!(saved == Credentials::WeatherApi { api_key: "EXISTING_KEY".to_string() });
+        assert!(
+            saved
+                == Credentials::WeatherApi {
+                    api_key: "EXISTING_KEY".to_string()
+                }
+        );
         assert_eq!(store.default, Some(provider.into()));
         assert!(prompter.overwrite_called);
         assert!(!prompter.credentials_prompt_called);
@@ -249,7 +259,12 @@ mod tests {
             .cloned()
             .expect("credentials must be present");
 
-        assert!(saved == Credentials::AccuWeather { api_key: "NEW_KEY".to_string() });
+        assert!(
+            saved
+                == Credentials::AccuWeather {
+                    api_key: "NEW_KEY".to_string()
+                }
+        );
         assert_eq!(store.default, Some(provider.into()));
         assert!(prompter.overwrite_called);
         assert!(prompter.credentials_prompt_called);

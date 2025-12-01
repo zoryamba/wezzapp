@@ -116,7 +116,7 @@ $ cargo clippy --all-targets
 Run formatter:
 
 ```bash
-cargo fmt --all
+$ cargo fmt --all
 ```
 
 Generate docs:

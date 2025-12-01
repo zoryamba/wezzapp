@@ -53,9 +53,12 @@ impl TomlFileCredentialsStore {
     }
 
     fn new_with_path(path: &Path) -> Result<Self> {
-        debug!("Creating new TomlFileCredentialsStore with path {}", path.display());
+        debug!(
+            "Creating new TomlFileCredentialsStore with path {}",
+            path.display()
+        );
         let config = if path.exists() {
-            let contents = fs::read_to_string(&path)
+            let contents = fs::read_to_string(path)
                 .context(format!("failed to read config file {}", path.display()))?;
             debug!("Loaded credentials from {}", path.display());
 
@@ -64,7 +67,10 @@ impl TomlFileCredentialsStore {
             if let Some(parent) = path.parent() {
                 fs::create_dir_all(parent)
                     .context(format!("failed to create directory {}", parent.display()))?;
-                debug!("Created directory {} for credentials file", parent.display());
+                debug!(
+                    "Created directory {} for credentials file",
+                    parent.display()
+                );
             }
             Config::default()
         };
@@ -199,7 +205,10 @@ mod tests {
             .get_credentials(provider)
             .expect("get_credentials");
 
-        assert!(Some(creds) == loaded, "stored credentials should match what we get back");
+        assert!(
+            Some(creds) == loaded,
+            "stored credentials should match what we get back"
+        );
     }
 
     #[test]
@@ -263,7 +272,10 @@ mod tests {
             .expect("get_credentials");
         let default_provider = store2.get_default_provider().expect("get_default_provider");
 
-        assert!(Some(creds) == loaded_creds, "credentials should survive reload");
+        assert!(
+            Some(creds) == loaded_creds,
+            "credentials should survive reload"
+        );
         assert_eq!(
             Some(Provider::WeatherApi),
             default_provider,

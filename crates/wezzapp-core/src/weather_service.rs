@@ -77,7 +77,7 @@ where
 
 pub fn days_from_today(date_str: &str) -> Result<u32> {
     debug!("Calculating days from today for date `{date_str}`");
-    let target = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
+    let target = NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
         .context("invalid date format (expected YYYY-MM-DD)")?;
     debug!("Parsed date `{date_str}` as `{target:?}`");
 

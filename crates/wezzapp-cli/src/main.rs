@@ -1,13 +1,13 @@
-use clap::Parser;
-use tracing::{debug};
-use tracing_subscriber::{EnvFilter, fmt};
-use wezzapp_core::apis::HttpProviderClientFactory;
-use wezzapp_core::weather_service::WeatherService;
 use crate::cli::Command;
 use crate::handlers::configure::ConfigureHandler;
 use crate::handlers::get::GetHandler;
 use crate::prompter::InquirePrompter;
 use crate::store::TomlFileCredentialsStore;
+use clap::Parser;
+use tracing::debug;
+use tracing_subscriber::{EnvFilter, fmt};
+use wezzapp_core::apis::HttpProviderClientFactory;
+use wezzapp_core::weather_service::WeatherService;
 
 mod cli;
 mod handlers;
@@ -43,7 +43,7 @@ fn main() -> anyhow::Result<()> {
             debug!("Initialized weather get handler");
 
             handler.run(address, date, provider)
-        },
+        }
     }
 }
 

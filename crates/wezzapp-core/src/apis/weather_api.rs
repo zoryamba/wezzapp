@@ -36,7 +36,9 @@ impl ProviderClient for WeatherApiClient<'static> {
         }
 
         let mut url = Url::parse(self.url).context("Error parsing WeatherAPI URL")?;
-        url = url.join("forecast.json").context("Error joining WeatherAPI URL")?;
+        url = url
+            .join("forecast.json")
+            .context("Error joining WeatherAPI URL")?;
         {
             let mut qp = url.query_pairs_mut();
             qp.append_pair("key", &self.api_key);

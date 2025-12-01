@@ -29,9 +29,14 @@ impl GetHandler {
         date: Option<String>,
         provider: Option<ProviderCli>,
     ) -> Result<()> {
-        debug!("Running get handler with address: {:?}, date: {:?}, provider: {:?}", address, date, provider);
+        debug!(
+            "Running get handler with address: {:?}, date: {:?}, provider: {:?}",
+            address, date, provider
+        );
 
-        let report = self.service.get_weather(address, date, provider.map(Into::into))?;
+        let report = self
+            .service
+            .get_weather(address, date, provider.map(Into::into))?;
         debug!("Weather report: {:?}", report);
 
         self.render_report(report);

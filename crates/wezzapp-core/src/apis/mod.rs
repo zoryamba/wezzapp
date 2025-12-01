@@ -1,11 +1,11 @@
-use anyhow::{anyhow, Result};
 use crate::apis::accu_weather::AccuWeatherClient;
 use crate::apis::weather_api::WeatherApiClient;
 use crate::credentials::Credentials;
 use crate::provider::Provider;
+use anyhow::{Result, anyhow};
 
-mod weather_api;
 mod accu_weather;
+mod weather_api;
 
 /// Result of a weather query, in a UI-friendly form.
 #[derive(Debug)]
@@ -20,11 +20,7 @@ pub struct WeatherReport {
 
 /// abstraction over weather API client
 pub trait ProviderClient {
-    fn get_weather(
-        &self,
-        address: String,
-        days: u32,
-    ) -> Result<WeatherReport>;
+    fn get_weather(&self, address: String, days: u32) -> Result<WeatherReport>;
 }
 
 /// Factory that returns a client for the given provider & credentials.
@@ -46,6 +42,12 @@ pub struct HttpProviderClientFactory;
 impl HttpProviderClientFactory {
     pub fn new() -> Self {
         Self {}
+    }
+}
+
+impl Default for HttpProviderClientFactory {
+    fn default() -> Self {
+        HttpProviderClientFactory::new()
     }
 }
 
