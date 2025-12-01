@@ -137,3 +137,4 @@ RUST_LOG=debug cargo run -- get "Kyiv, Ukraine"
  - Use `secrecy` crate for handling credentials
  - Configure handler uses store directly, maybe introduce some credentials service in core crate
  - Consider some crate for dependency injection
+ - Structurize error handling with `thiserror`
