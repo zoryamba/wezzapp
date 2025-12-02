@@ -15,19 +15,26 @@ pub struct AccuWeatherClient<'a> {
     url: &'a str,
     client: Client,
 }
-
 impl AccuWeatherClient<'static> {
     pub fn new(api_key: String) -> Self {
         Self {
             api_key,
-            client: Client::new(),
             url: "https://dataservice.accuweather.com/",
+            client: Client::new(),
         }
     }
-}
 
-impl AccuWeatherClient<'static> {
-    fn get_location_key(&self, address: String) -> Result<AccuWeatherLocationResponse> {
+    fn get(&self, url: Url) -> Result<reqwest::blocking::Response> {
+        self.client
+            .get(url)
+            .header(AUTHORIZATION, format!("Bearer {}", self.api_key))
+            .send()
+            .context("failed to send request to AccuWeather API")?
+            .error_for_status()
+            .context("AccuWeather API returned error status")
+    }
+
+    fn search_request(&self, address: String) -> Result<Vec<AccuWeatherLocationResponse>> {
         debug!("Getting location key for address `{address}`");
         let mut url = Url::parse(self.url).context("Error parsing AccuWeather API URL")?;
         url = url
@@ -39,27 +46,35 @@ impl AccuWeatherClient<'static> {
         }
         debug!("AccuWeather API URL: {url:?}");
 
-        let resp = self
-            .client
-            .get(url)
-            .header(AUTHORIZATION, format!("Bearer {}", self.api_key))
-            .send()
-            .context("failed to send request to AccuWeather API")?
-            .error_for_status()
-            .context("AccuWeather API returned error status")?;
-        debug!("AccuWeather API response: {resp:?}");
+        let resp = self.get(url)?;
 
-        let mut body: Vec<AccuWeatherLocationResponse> = resp
+        let body = resp
             .json()
             .context("failed to deserialize AccuWeather API JSON")?;
         debug!("AccuWeather API body: {body:?}");
 
-        let location_key = body
-            .pop()
-            .context("Address not found, please, use more accurate address, eg: Kyiv, Ukraine")?;
-        debug!("AccuWeather API location key: {location_key:?}");
+        Ok(body)
+    }
 
-        Ok(location_key)
+    fn forecast_request(&self, location_key: &str) -> Result<AccuWeatherForecastResponse> {
+        let mut url = Url::parse(self.url).context("Error parsing AccuWeather API URL")?;
+        url = url
+            .join(&format!("forecasts/v1/daily/5day/{}", location_key))
+            .context("Error joining AccuWeather API URL")?;
+        {
+            let mut qp = url.query_pairs_mut();
+            qp.append_pair("metric", &true.to_string());
+        }
+        debug!("AccuWeather API URL: {url:?}");
+
+        let resp = self.get(url)?;
+
+        let body = resp
+            .json()
+            .context("Failed to deserialize AccuWeather API JSON")?;
+        debug!("AccuWeather API body: {body:?}");
+
+        Ok(body)
     }
 }
 
@@ -74,52 +89,34 @@ impl ProviderClient for AccuWeatherClient<'static> {
             ));
         }
 
-        let location = self.get_location_key(address)?;
+        let mut locations = self.search_request(address)?;
 
-        let mut url = Url::parse(self.url).context("Error parsing AccuWeather API URL")?;
-        url = url
-            .join(&format!("forecasts/v1/daily/5day/{}", location.key))
-            .context("Error joining AccuWeather API URL")?;
-        {
-            let mut qp = url.query_pairs_mut();
-            qp.append_pair("metric", &true.to_string());
-        }
-        debug!("AccuWeather API URL: {url:?}");
+        let location = locations
+            .pop()
+            .context("Address not found, please, use more accurate address, eg: Kyiv, Ukraine")?;
+        debug!("AccuWeather API location key: {location:?}");
 
-        let resp = self
-            .client
-            .get(url)
-            .header(AUTHORIZATION, format!("Bearer {}", self.api_key))
-            .send()
-            .context("failed to send request to AccuWeather API")?
-            .error_for_status()
-            .context("AccuWeather API returned error status")?;
-        debug!("AccuWeather API response: {resp:?}");
+        let forecast = self.forecast_request(&location.key)?;
 
-        let body: AccuWeatherForecastResponse = resp
-            .json()
-            .context("Failed to deserialize AccuWeather API JSON")?;
-        debug!("AccuWeather API body: {body:?}");
-
-        let forecast = body
+        let day_forecast = forecast
             .daily_forecasts
             .get(day_from_today as usize)
             .context("Wrong number of days in API response")?;
-        debug!("AccuWeather API forecast: {forecast:?}");
+        debug!("AccuWeather API forecast: {day_forecast:?}");
 
         Ok(WeatherReport {
-            provider: Provider::WeatherApi,
-            date: forecast.date.clone().to_string(),
+            provider: Provider::AccuWeather,
+            date: day_forecast.date.clone().to_string(),
             location: format!(
                 "{}, {}",
                 location.localized_name, location.country.localized_name
             ),
             description: format!(
                 "Day: {}, Night: {}",
-                forecast.day.icon_prase, forecast.night.icon_prase
+                day_forecast.day.icon_prase, day_forecast.night.icon_prase
             ),
-            max_temperature: forecast.temperature.minimum.value,
-            min_temperature: forecast.temperature.maximum.value,
+            max_temperature: day_forecast.temperature.minimum.value,
+            min_temperature: day_forecast.temperature.maximum.value,
         })
     }
 }

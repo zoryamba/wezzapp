@@ -1,8 +1,9 @@
 use crate::apis::{ProviderClient, WeatherReport};
 use crate::provider::Provider;
-use anyhow::{Context, anyhow};
+use anyhow::{Context, Result, anyhow};
 use reqwest::Url;
 use reqwest::blocking::Client;
+use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
 use tracing::debug;
 
@@ -18,14 +19,52 @@ impl WeatherApiClient<'static> {
     pub fn new(api_key: String) -> Self {
         Self {
             api_key,
-            client: Client::new(),
             url: "https://api.weatherapi.com/v1/",
+            client: Client::new(),
         }
+    }
+
+    fn get(&self, mut url: Url) -> Result<reqwest::blocking::Response> {
+        {
+            let mut qp = url.query_pairs_mut();
+            qp.append_pair("key", &self.api_key);
+        }
+        self.client
+            .get(url)
+            .header(AUTHORIZATION, format!("Bearer {}", self.api_key))
+            .send()
+            .context("failed to send request to AccuWeather API")?
+            .error_for_status()
+            .context("AccuWeather API returned error status")
+    }
+
+    fn forecast_request(&self, address: String, days: u32) -> Result<WeatherApiResponse> {
+        let mut url = Url::parse(self.url).context("Error parsing WeatherAPI URL")?;
+        url = url
+            .join("forecast.json")
+            .context("Error joining WeatherAPI URL")?;
+        {
+            let mut qp = url.query_pairs_mut();
+            qp.append_pair("q", &address);
+            qp.append_pair("days", &(days).to_string());
+        }
+        debug!("WeatherAPI URL: {url:?}");
+
+        let resp = self.get(url)?;
+
+        debug!("WeatherAPI response: {resp:?}");
+
+        let body: WeatherApiResponse = resp
+            .json()
+            .context("failed to deserialize WeatherAPI JSON")?;
+        debug!("WeatherAPI body: {body:?}");
+
+        Ok(body)
     }
 }
 
 impl ProviderClient for WeatherApiClient<'static> {
-    fn get_weather(&self, address: String, day_from_today: u32) -> anyhow::Result<WeatherReport> {
+    fn get_weather(&self, address: String, day_from_today: u32) -> Result<WeatherReport> {
         debug!("Getting weather for address `{address} day from today: {day_from_today}`");
         let days = day_from_today + 1;
 
@@ -35,31 +74,7 @@ impl ProviderClient for WeatherApiClient<'static> {
             ));
         }
 
-        let mut url = Url::parse(self.url).context("Error parsing WeatherAPI URL")?;
-        url = url
-            .join("forecast.json")
-            .context("Error joining WeatherAPI URL")?;
-        {
-            let mut qp = url.query_pairs_mut();
-            qp.append_pair("key", &self.api_key);
-            qp.append_pair("q", &address);
-            qp.append_pair("days", &(days).to_string());
-        }
-        debug!("WeatherAPI URL: {url:?}");
-
-        let resp = self
-            .client
-            .get(url)
-            .send()
-            .context("failed to send request to WeatherAPI")?
-            .error_for_status()
-            .context("WeatherAPI returned error status")?;
-        debug!("WeatherAPI response: {resp:?}");
-
-        let body: WeatherApiResponse = resp
-            .json()
-            .context("failed to deserialize WeatherAPI JSON")?;
-        debug!("WeatherAPI body: {body:?}");
+        let body = self.forecast_request(address, days)?;
 
         let forecast = body
             .forecast
